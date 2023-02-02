@@ -1,0 +1,46 @@
+I) Create a mock principle to assume authenticated token provided for user: "SAMSACCOUNT" in role 'LabUser'
+II) Create Authorization filters for the Samples API that apply the following
+    1) Filter GET requests by <logged in user>labld == Sample.labld(lookup users for logged in users to get profile) 
+        or provide 401 unauthorized(for getbyid)
+
+	  [HttpGet("{labld}", Name = "GetUser")]
+        public async Task<ActionResult<MemberDto>> GetUser(string labld)
+        {
+             return await _context.Users
+                .Where(x => x.labId == labld)
+                .ProjectTo<MemberDto>(_mapper.ConfigurationProvider)
+                .SingleOrDefaultAsync();
+        }
+
+    public class MemberDto
+    {
+        public int Id { get; set; }
+ 	  public int UserId { get; set; }
+        public string name { get; set; }
+        public string email { get; set; }
+        public string labId { get; set; }
+     }
+
+
+    2) PUT/DELETE requests require that labld of the referenced Sample equals user.labld
+	  [HttpDelete("delete/{labId}")]
+        public async Task<ActionResult> DeletePhoto(int labId)
+        {
+           
+            var labid = dbContext.user.FirstOrDefault(x => x.labid == labld);
+
+            if (labid == null) return NotFound();
+
+      
+
+
+
+            dbContext.user.Remove(labid);
+
+             return Ok();
+
+           
+        }
+
+
+III) Create Unit Tests to validate the Sample requirements above

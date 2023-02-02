@@ -1,0 +1,120 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SchoolManagment.Services.Auth.Data;
+using SchoolManagment.Services.Auth.DTOs;
+using SchoolManagment.Services.Auth.Models;
+using SchoolManagment.Services.Auth.Repository.IRepository;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace SchoolManagment.Services.Auth.Controllers
+{
+    public class AccountController : BaseAPIController
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly ITokenService _tokenService;
+        public AccountController(ApplicationDbContext context, ITokenService tokenservice)
+        {
+             _tokenService = tokenservice;
+            _context = context;
+        }
+        [HttpPost("register")]
+       
+        public async Task<ActionResult<UserDto>> Register(RegisterDto registerdto)
+        {
+            if (await UserExits(registerdto.userName))  return BadRequest("Username is taken");
+           using var hmac = new HMACSHA512();
+            var user = new AppUser
+            {
+                UserName = registerdto.userName.ToLower(),
+                PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerdto.password)), //need to get the hash of a password
+                PasswordSalt = hmac.Key //randomly generated key 
+            };
+            _context.appUsers.Add(user);
+            await _context.SaveChangesAsync();
+            return new UserDto
+            {
+                userName = user.UserName,
+                //Id = user.Id,
+                Token = _tokenService.CreateToken(user)
+            };
+        }
+
+        [HttpPost("login")]
+        public async Task<ActionResult<UserDto>> Login(LoginDto logindto)
+        {
+            var user = await _context.appUsers
+                   .SingleOrDefaultAsync(x => x.UserName == logindto.userName);
+
+            if (user == null) return Unauthorized("InValid username");
+            //return new UserDto
+            //{
+            //    userName = "500",
+            //    Token =
+
+            //}; 
+            //Unauthorized("InValid username");
+
+            using var hmac = new HMACSHA512(user.PasswordSalt);
+            var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(logindto.password));
+            for (int i = 0; i < computedHash.Length; i++)
+            {
+                if (computedHash[i] != user.PasswordHash[i]) return Unauthorized("InValid Password");
+            }
+            return new UserDto
+            {
+                userName = user.UserName,
+                Token = _tokenService.CreateToken(user),
+                Id = user.Id
+            };
+        }
+        private async Task<bool> UserExits(string username)
+        {
+            return await _context.appUsers.Where(u => u.UserName.ToLower() == username.ToLower()).AnyAsync();
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------
+
+public string CreateToken(AppUser user)
+        {
+            var claims = new List<Claim>
+           {
+               new Claim(JwtRegisteredClaimNames.NameId, user.UserName)
+           };
+           var creads = new SigningCredentials(_key, SecurityAlgorithms.HmacSha512Signature);
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.Now.AddDays(7),
+                SigningCredentials = creads
+            };
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+
+        }
+
+
+--------------------------------
+
+Program.cs 
+
+app.UseCors();
+app.UseHttpsRedirection();
+app.UseRouting();
+app.UseAuthorization();
+
+app.MapControllers();

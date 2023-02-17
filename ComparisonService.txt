@@ -1,0 +1,49 @@
+namespace pulsenet.api.Services
+{
+    public class ComparisonService : IComparisonService
+    {
+        private readonly ILogger<ComparisonService> _logger;
+        private readonly IMapper _mapper;
+        private readonly IDataService<Comparison> _comparisonDataService;
+
+        public ComparisonService(ILogger<ComparisonService> logger, IMapper mapper, IDataService<Comparison> comparisonDataService)
+        {
+            _logger = logger;
+            _mapper = mapper;
+            _comparisonDataService = comparisonDataService;
+        }
+
+        public IEnumerable<ComparisonDTO> GetAllComparisons()
+        {
+            var comparisons = _comparisonDataService.GetAll();
+            var comparisonDtos = _mapper.Map<IEnumerable<ComparisonDTO>>(comparisons);
+            return comparisonDtos;
+        }
+
+        public ComparisonDTO GetComparisonById(int id)
+        {
+            var comparison = _comparisonDataService.Get(id);
+            var comparisonDto = _mapper.Map<ComparisonDTO>(comparison);
+            return comparisonDto;
+        }
+
+        public ComparisonDTO InsertComparison(ComparisonDTO comparisonDto)
+        {
+            var comparison = _mapper.Map<Comparison>(comparisonDto);
+            comparison = _comparisonDataService.Insert(comparison);
+            var insertedComparisonDto = _mapper.Map<ComparisonDTO>(comparison);
+            return insertedComparisonDto;
+        }
+
+        public void UpdateComparison(Comparison comparison, ComparisonDTO comparisonDto)
+        {
+            _mapper.Map(comparisonDto, comparison);
+            _comparisonDataService.Update(comparison);
+        }
+
+        public void DeleteComparison(Comparison comparison)
+        {
+            _comparisonDataService.Delete(comparison.Id);
+        }
+    }
+}
